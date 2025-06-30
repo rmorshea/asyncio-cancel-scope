@@ -1,0 +1,10 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v2025.06.1
+_src_path: https://github.com/rmorshea/python-copier-template
+author_email: ryan.morshead@gmail.com
+author_name: Ryan Morshead
+project_description: A utility for cancelling asyncio task groups.
+project_title: Asyncio Cancel Scope
+python_package_name: asyncio_cancel_scope
+python_version_range: '>=3.11'
+repo_url: https://github.com/rmorshea/asyncio-cancel-scope
