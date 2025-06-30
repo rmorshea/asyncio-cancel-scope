@@ -60,39 +60,5 @@ async def main():
 
 ## Under the Hood
 
-Behind the scenes, `cancel_scope` creates a background task to run the task group. This
-makes it easy to cancel all the group's underlying tasks without needing to manually
-track them. The implementation looks roughly like this:
-
-```python
-import asyncio
-import contextlib
-
-
-@contextlib.asynccontextmanager
-async def cancel_scope(tg):
-    did_enter = asyncio.Event()
-    will_exit = asyncio.Event()
-    did_exit = asyncio.Event()
-
-    async def wrapper():
-        try:
-            async with tg:
-                did_enter.set()
-                await will_exit.wait()
-        finally:
-            did_exit.set()
-
-    task = asyncio.create_task(wrapper())
-    await did_enter.wait()  # ensure the task has entered the context manager
-
-    try:
-        yield tg, task.cancel
-        will_exit.set()
-        await did_exit.wait()
-    except BaseException:
-        if task.cancel():
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
-        raise
-```
+Behind the scenes, `cancel_scope` patches the `TaskGroup` to capture the tasks created
+within it. When the `cancel` callback is called, it cancels all those tasks.

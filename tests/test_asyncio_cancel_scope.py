@@ -3,8 +3,21 @@ import asyncio
 
 import pytest
 
-from asyncio_cancel_scope import _cancel_and_wait as cancel_and_wait
 from asyncio_cancel_scope import cancel_scope
+
+
+async def cancel_and_wait(task: asyncio.Task, msg: str | None = None) -> None:
+    # copied from: https://github.com/python/cpython/issues/103486#issue-1665155187
+    task.cancel(msg)
+    try:
+        await task
+    except asyncio.CancelledError:
+        if (ct := asyncio.current_task()) and ct.cancelling() == 0:
+            raise
+        return  # this is the only non-exceptional return
+    else:  # nocov
+        msg = "Cancelled task did not end with an exception"
+        raise RuntimeError(msg)
 
 
 class FakeError(Exception):
@@ -20,7 +33,7 @@ async def test_cancel_scope():
 
 async def test_cancel_scope_with_exception():
     never = asyncio.Event()
-    with pytest.raises(FakeError):
+    with pytest.raises(ExceptionGroup):
         async with cancel_scope(asyncio.TaskGroup()) as (tg, _):
             tg.create_task(never.wait())
             raise FakeError
@@ -64,7 +77,7 @@ async def test_outer_error_causes_inner_cancel():
             did_cancel = True
             raise
 
-    with pytest.raises(FakeError):
+    with pytest.raises(ExceptionGroup):
         async with cancel_scope(asyncio.TaskGroup()) as (tg, _):
             tg.create_task(wait_forever())
             await is_waiting.wait()
