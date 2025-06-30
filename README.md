@@ -34,7 +34,7 @@ async def main():
 asyncio.run(main())
 ```
 
-# Alternatives
+## Alternatives
 
 Without this you'd need to manually cancel each task in the group, which can be
 cumbersome and error-prone:
@@ -58,11 +58,11 @@ async def main():
                 pass  # supress the cancellation exception
 ```
 
-# Under the Hood
+## Under the Hood
 
 Behind the scenes, `cancel_scope` creates a background task to run the task group. This
 makes it easy to cancel all the group's underlying tasks without needing to manually
-track them. This roughly translates to the following:
+track them. The implementation looks roughly like this:
 
 ```python
 import asyncio
