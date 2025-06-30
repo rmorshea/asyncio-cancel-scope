@@ -91,10 +91,8 @@ async def test_failure_on_enter_is_propagated():
 
 
 async def test_internal_error_is_propagated():
-
     async def will_raise():
-        raise FakeError()
-
+        raise FakeError
 
     with pytest.raises(ExceptionGroup):
         async with cancel_scope(asyncio.TaskGroup()) as (tg, _):
