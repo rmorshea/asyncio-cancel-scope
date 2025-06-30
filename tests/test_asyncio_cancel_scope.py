@@ -88,3 +88,14 @@ async def test_failure_on_enter_is_propagated():
     with pytest.raises(RuntimeError):
         async with cancel_scope(tg) as _:
             pass  # nocov
+
+
+async def test_internal_error_is_propagated():
+
+    async def will_raise():
+        raise FakeError()
+
+
+    with pytest.raises(ExceptionGroup):
+        async with cancel_scope(asyncio.TaskGroup()) as (tg, _):
+            tg.create_task(will_raise())

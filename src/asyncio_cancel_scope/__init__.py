@@ -81,6 +81,8 @@ class _CancelScope:
 
         try:
             await self._did_exit_task
+            if not self._task.cancelled():
+                await self._task
         except CancelledError:
             await _cancel_and_wait(self._task)
             raise
