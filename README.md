@@ -52,10 +52,6 @@ async def main():
         tasks.append(tg.create_task(asyncio.sleep(4)))
         for task in tasks:
             task.cancel()  # manually cancel each task
-            try:
-                await task  # wait until the task is cancelled
-            except asyncio.CancelledError:
-                pass  # supress the cancellation exception
 ```
 
 ## Under the Hood
