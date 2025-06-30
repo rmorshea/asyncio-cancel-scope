@@ -40,6 +40,13 @@ class CancelCallback(Protocol):
 class _CancelScope:
     def __init__(self, task_group: TaskGroup) -> None:
         self.task_group = task_group
+        self._cancelled_scope = False
+
+    def cancel(self, msg: str | None = None) -> bool:
+        """Cancel the associated task group - same interface as Task.cancel()."""
+        self._cancelled_scope = True
+        return self._task.cancel(msg)
+        
 
     async def __aenter__(self) -> tuple[TaskGroup, CancelCallback]:
         self._did_enter = Event()
@@ -47,22 +54,21 @@ class _CancelScope:
         self._did_exit = Event()
 
         self._task = create_task(
-            _wrapper(self.task_group, self._did_enter, self._will_exit, self._did_exit)
+            _wrapper(self.task_group, self._did_enter, self._will_exit)
         )
 
         did_enter_task = create_task(self._did_enter.wait())
-        self._did_exit_task = create_task(self._did_exit.wait())
 
-        done, _ = await wait([did_enter_task, self._did_exit_task], return_when="FIRST_COMPLETED")
+        done, _ = await wait([did_enter_task, self._task], return_when="FIRST_COMPLETED")
 
-        if self._did_exit_task in done:
+        if self._task in done:
             did_enter_task.cancel()
             await self._task
             raise AssertionError(  # nocov  # noqa: TRY003
                 "Task exited before entering the context manager"  # noqa: EM101
             )
 
-        return self.task_group, self._task.cancel
+        return self.task_group, self.cancel
 
     async def __aexit__(
         self,
@@ -80,21 +86,17 @@ class _CancelScope:
             return
 
         try:
-            await self._did_exit_task
-            if not self._task.cancelled():
-                await self._task
+            await self._task
         except CancelledError:
-            await _cancel_and_wait(self._task)
+            if self._cancelled_scope:
+                return
             raise
 
 
-async def _wrapper(task_group: TaskGroup, did_enter: Event, will_exit: Event, did_exit: Event):
-    try:
-        async with task_group:
-            did_enter.set()
-            await will_exit.wait()
-    finally:
-        did_exit.set()
+async def _wrapper(task_group: TaskGroup, did_enter: Event, will_exit: Event):
+    async with task_group:
+        did_enter.set()
+        await will_exit.wait()
 
 
 async def _cancel_and_wait(task: Task, msg: str | None = None) -> None:
