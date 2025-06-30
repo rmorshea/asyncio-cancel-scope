@@ -90,69 +90,21 @@ def lint(
                     "--ignore-missing-references",
                     "--check",
                     "README.md",
-                    "docs",
                 ]
             )
             doc_cmd(["ruff", "format", "--check"], no_pad=True)
             doc_cmd(["ruff", "check"], no_pad=True)
         else:
-            run(["mdformat", "--ignore-missing-references", "README.md", "docs"])
+            run(["mdformat", "--ignore-missing-references", "README.md"])
             doc_cmd(["ruff", "format"], no_pad=True)
             doc_cmd(["ruff", "check", "--fix"], no_pad=True)
     if not no_yml_style:
         if check:
-            run(["yamlfix", "--check", "docs", ".github"])
+            run(["yamlfix", "--check", ".github"])
         else:
-            run(["yamlfix", "docs", ".github"])
+            run(["yamlfix", ".github"])
     if not no_py_types:
         run(["pyright"])
-
-
-@main.group("docs")
-def docs():
-    """Documentation commands."""
-
-
-@docs.command("build")
-def docs_build():
-    """Build documentation."""
-    run(["mkdocs", "build", "-f", "docs/mkdocs.yml"])
-
-
-@docs.command("publish")
-def docs_publish():
-    """Publish documentation."""
-    run(["mkdocs", "gh-deploy", "-f", "docs/mkdocs.yml"])
-
-
-@docs.command("serve")
-def docs_serve():
-    """Serve documentation."""
-    run(["mkdocs", "serve", "-f", "docs/mkdocs.yml"])
-
-
-@docs.command("check-changelog")
-@click.argument("target_branch", type=str, default="main")
-def docs_check_changelog(target_branch: str):
-    """Check if the changelog is up to date."""
-    current_branch = run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True
-    ).stdout.strip()
-    if current_branch == target_branch:
-        click.echo("Already on the target branch, skipping changelog check.")
-        return
-    run(["git", "fetch", "origin", target_branch])
-    run(
-        [
-            "git",
-            "diff",
-            "--name-only",
-            f"origin/{target_branch}..HEAD",
-            "--",
-            "CHANGELOG.md",
-        ],
-        check=False,
-    )
 
 
 if TYPE_CHECKING:
@@ -214,25 +166,6 @@ def report(
                 if end_col:
                     file_parts.append(f"endCol={end_col}")
         click.echo(f"::{kind} {','.join(file_parts)}")
-
-
-def doc_cmd(cmd: Sequence[str], *, no_pad: bool = False):
-    run(
-        list(
-            filter(
-                None,
-                [
-                    "doccmd",
-                    "-v",
-                    "--language=python",
-                    "--no-pad-file" if no_pad else "",
-                    "--command",
-                    " ".join(cmd),
-                    "docs",
-                ],
-            )
-        )
-    )
 
 
 if __name__ == "__main__":
