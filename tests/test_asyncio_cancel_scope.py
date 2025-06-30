@@ -68,8 +68,8 @@ async def test_outer_error_causes_inner_cancel():
         async with cancel_scope(asyncio.TaskGroup()) as (tg, _):
             tg.create_task(wait_forever())
             await is_waiting.wait()
-            raise FakeError()
-        
+            raise FakeError
+
     assert did_cancel
 
 
