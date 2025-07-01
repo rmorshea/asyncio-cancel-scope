@@ -144,9 +144,9 @@ async def test_outer_task_group_not_cancelled_by_inner_if_no_shared_scope():
 
 
 async def test_create_task_on_cancelled_group_does_not_run():
-
     async def raise_error():
-        raise RuntimeError("This task should not run")
+        msg = "This task should not run"
+        raise RuntimeError(msg)
 
     async with cancel_scope(asyncio.TaskGroup()) as tg:
         cancel_group(tg)
@@ -155,7 +155,26 @@ async def test_create_task_on_cancelled_group_does_not_run():
         tg.create_task(raise_error())
 
 
-def test_cannot_cancel_task_group_without_cancel_scope():
+async def test_cannot_cancel_group_outside_cancel_scope():
     tg = asyncio.TaskGroup()
-    with pytest.raises(RuntimeError, match=r"cancel_scope"):
+    async with cancel_scope(tg):
+        pass
+    with pytest.raises(RuntimeError, match=r"cancel scope"):
+        cancel_group(tg)
+
+
+async def test_deeply_nested_cancel_scopes_unravel():
+    forever = asyncio.Event()
+    async with cancel_scope(asyncio.TaskGroup()) as tg1:
+        tg1.create_task(forever.wait())
+        async with cancel_scope(asyncio.TaskGroup(), tg1) as tg2:
+            tg2.create_task(forever.wait())
+            async with cancel_scope(asyncio.TaskGroup(), tg2) as tg3:
+                tg3.create_task(forever.wait())
+                cancel_group(tg3)
+
+
+def test_cannot_cancel_group_without_cancel_scope():
+    tg = asyncio.TaskGroup()
+    with pytest.raises(RuntimeError, match=r"cancel scope"):
         cancel_group(tg)

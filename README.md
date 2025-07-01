@@ -16,22 +16,43 @@ pip install asyncio_cancel_scope
 
 ## Usage
 
-The `cancel_scope` function allows you to cleanly cancel all the tasks within a task
-group:
+The `cancel_scope` function allows you to establish a task group that can be cancelled
+with the `cancel_group` function. This is useful for managing multiple tasks that should
+be stopped together.
 
 ```python
 import asyncio
-from asyncio_cancel_scope import cancel_scope
+from asyncio_cancel_scope import cancel_scope, cancel_group
 
 async def main():
-    async with cancel_scope(asyncio.TaskGroup()) as (tg, cancel):
+    async with cancel_scope(asyncio.TaskGroup()) as tg:
         tg.create_task(asyncio.sleep(1))
         tg.create_task(asyncio.sleep(2))
         tg.create_task(asyncio.sleep(3))
         tg.create_task(asyncio.sleep(4))
-        cancel()  # cancels all tasks in the group and exits without an exception
+        cancel_group(tg)  # cancels all tasks in the group and exits without an exception
 
 asyncio.run(main())
+```
+
+You can link cancel scopes so that parent task groups are cancelled when inner task
+groups are.
+
+```python
+import asyncio
+from asyncio_cancel_scope import cancel_scope, cancel_group
+
+async def outer():
+    forever = asyncio.Event()
+    async with cancel_scope(asyncio.TaskGroup()) as outer_tg:
+        outer_tg.create_task(forever.wait())
+        outer_tg.create_task(inner(outer_tg))
+
+async def inner(parent_tg):
+    async with cancel_scope(asyncio.TaskGroup(), parent_tg) as inner_tg:
+        cancel_group(inner_tg)
+
+asyncio.run(outer())
 ```
 
 ## Alternatives
@@ -56,5 +77,8 @@ async def main():
 
 ## Under the Hood
 
-Behind the scenes, `cancel_scope` patches the `TaskGroup` to capture the tasks created
-within it. When the `cancel` callback is called, it cancels all those tasks.
+The `cancel_group` function adds a task to the task group that immediately raises a
+special exception. When this happens the behavior of `asyncio.TaskGroup` is to cancel
+all tasks in the group and propagate the exception. The purpose of `cancel_scope` is to
+supress that special exception so that it does not propagate to the caller of
+`cancel_scope`.
